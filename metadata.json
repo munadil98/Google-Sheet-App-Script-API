@@ -1,0 +1,5 @@
+{
+  "name": "SheetFlow",
+  "description": "A powerful interface to manage your Google Sheets data via Apps Script API. Create, read, update, and delete sheet rows with ease.",
+  "requestFramePermissions": []
+}
