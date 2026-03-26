@@ -1,5 +1,5 @@
 export interface SheetRow {
-  id: string;
+  __rowId__: string;
   [key: string]: any;
 }
 

@@ -5,7 +5,14 @@
  *   try {
  *     const action = e.parameter.action;
  *     const ss = SpreadsheetApp.getActiveSpreadsheet();
- *     const sheet = ss.getActiveSheet();
+ *     
+ *     if (action === 'GET_SHEETS') {
+ *       const sheets = ss.getSheets().map(s => s.getName());
+ *       return createResponse({ status: 'success', data: sheets });
+ *     }
+ * 
+ *     const sheetName = e.parameter.sheet || ss.getSheets()[0].getName();
+ *     const sheet = ss.getSheetByName(sheetName);
  *     
  *     if (sheet.getLastRow() === 0) {
  *       return createResponse({ status: 'success', data: [], message: 'Sheet is empty' });
@@ -16,7 +23,7 @@
  *     
  *     if (action === 'GET_ALL') {
  *       const rows = data.slice(1).map((row, index) => {
- *         const obj = { id: (index + 2).toString() };
+ *         const obj = { __rowId__: (index + 2).toString() };
  *         headers.forEach((header, i) => {
  *           obj[header] = row[i];
  *         });
@@ -36,7 +43,8 @@
  *     const payload = JSON.parse(e.postData.contents);
  *     const action = payload.action;
  *     const ss = SpreadsheetApp.getActiveSpreadsheet();
- *     const sheet = ss.getActiveSheet();
+ *     const sheetName = payload.sheet || ss.getSheets()[0].getName();
+ *     const sheet = ss.getSheetByName(sheetName);
  *     
  *     if (action === 'ADD_ROW') {
  *       const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
@@ -72,8 +80,6 @@
  *   return ContentService.createTextOutput(JSON.stringify(obj))
  *     .setMimeType(ContentService.MimeType.JSON);
  * }
- * 
- * // IMPORTANT: When deploying, ensure "Who has access" is set to "Anyone"
  */
 
 import { AppsScriptResponse, SheetRow } from "../types";
@@ -85,37 +91,47 @@ export class AppsScriptService {
     this.url = url;
   }
 
-  async getAll(): Promise<SheetRow[]> {
-    const response = await fetch(`${this.url}?action=GET_ALL`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+  async getSheets(): Promise<string[]> {
+    const response = await fetch(`${this.url}?action=GET_SHEETS`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const result: AppsScriptResponse<string[]> = await response.json();
+    if (result.status === 'error') throw new Error(result.message);
+    return result.data || [];
+  }
+
+  async getAll(sheetName?: string): Promise<SheetRow[]> {
+    const url = new URL(this.url);
+    url.searchParams.append('action', 'GET_ALL');
+    if (sheetName) url.searchParams.append('sheet', sheetName);
+    
+    const response = await fetch(url.toString());
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const result: AppsScriptResponse<SheetRow[]> = await response.json();
     if (result.status === 'error') throw new Error(result.message);
     return result.data || [];
   }
 
-  async addRow(data: any): Promise<void> {
+  async addRow(data: any, sheetName?: string): Promise<void> {
     await fetch(this.url, {
       method: 'POST',
       mode: 'no-cors',
-      body: JSON.stringify({ action: 'ADD_ROW', data }),
+      body: JSON.stringify({ action: 'ADD_ROW', data, sheet: sheetName }),
     });
   }
 
-  async updateRow(id: string, data: any): Promise<void> {
+  async updateRow(rowId: string, data: any, sheetName?: string): Promise<void> {
     await fetch(this.url, {
       method: 'POST',
       mode: 'no-cors',
-      body: JSON.stringify({ action: 'UPDATE_ROW', id, data }),
+      body: JSON.stringify({ action: 'UPDATE_ROW', id: rowId, data, sheet: sheetName }),
     });
   }
 
-  async deleteRow(id: string): Promise<void> {
+  async deleteRow(rowId: string, sheetName?: string): Promise<void> {
     await fetch(this.url, {
       method: 'POST',
       mode: 'no-cors',
-      body: JSON.stringify({ action: 'DELETE_ROW', id }),
+      body: JSON.stringify({ action: 'DELETE_ROW', id: rowId, sheet: sheetName }),
     });
   }
 }
