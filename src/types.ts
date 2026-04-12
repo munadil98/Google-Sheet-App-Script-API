@@ -9,4 +9,9 @@ export interface AppsScriptResponse<T = any> {
   message?: string;
 }
 
-export type ActionType = 'GET_ALL' | 'ADD_ROW' | 'UPDATE_ROW' | 'DELETE_ROW';
+export interface DropdownConfig {
+  fieldName: string;
+  sourceSheet: string;
+}
+
+export type ActionType = 'GET_ALL' | 'ADD_ROW' | 'UPDATE_ROW' | 'DELETE_ROW' | 'GET_SHEETS';
